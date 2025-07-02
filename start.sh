@@ -281,4 +281,4 @@ menu_principal() {
 
 # Point d'entrée principal
 clear
-menu_principa
+menu_principal
