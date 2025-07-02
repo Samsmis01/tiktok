@@ -63,3 +63,4 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 } else {
     header("HTTP/1.1 403 Forbidden");
     die("Accès non autorisé");
+}
